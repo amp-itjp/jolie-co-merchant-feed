@@ -1,0 +1,44 @@
+name: Refresh supplemental feed
+
+on:
+  schedule:
+    # 03:00 UTC = 10 PM EST / 11 PM EDT, ahead of the Merchant Center fetch at 12:00 AM Eastern.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The script exits non-zero on a failed download or a suspiciously small file,
+      # so a bad run never reaches the deploy step and the previous file stays live.
+      - name: Build file
+        run: |
+          mkdir -p site
+          python3 -I tools/build_variant_option_feed.py \
+            "https://epf.essentialshopifyapps.com/feeds/GoogleMerchantsupplementalfeed-431.csv" \
+            site/GOOGLE_SUPPLEMENTAL_ALL.csv
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
