@@ -1,6 +1,6 @@
 # Jolie Co Merchant Center supplemental file
 
-Builds `GOOGLE_SUPPLEMENTAL_ALL.csv` for Google Merchant Center from the Essential Product Feeds CSV,
+Builds `GOOGLE_SUPPLEMENTAL_ALL.csv` for Google Merchant Center straight from Shopify (Admin API bulk export),
 splitting `variant_option` into one name:value pair per column (every column named `variant_option`).
 
 - Runs daily at 03:00 UTC and on demand (Actions > Refresh supplemental feed > Run workflow).
