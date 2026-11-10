@@ -1,0 +1,29 @@
+name: One-off primary export
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export catalog and per-country prices
+        env:
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        run: python3 -I tools/shopify_primary_export.py jolie-je.myshopify.com catalog.csv
+      - name: Build per-country feeds
+        run: |
+          mkdir -p out
+          python3 -I tools/build_primary_feed.py catalog.csv out || true
+          wc -l catalog.csv; ls out | head -40
+      - uses: actions/upload-artifact@v4
+        with:
+          name: primary-export
+          path: |
+            catalog.csv
+            out
+          retention-days: 1
