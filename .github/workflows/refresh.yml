@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p site
           python3 -I tools/build_variant_option_feed.py shopify.csv site/GOOGLE_SUPPLEMENTAL_ALL.csv
+          cp static/product_reviews.xml site/product_reviews.xml
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
