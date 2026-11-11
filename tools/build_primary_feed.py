@@ -22,7 +22,12 @@ COUNTRIES = {"AU": "AUD", "BH": "CAD", "BE": "EUR", "CA": "CAD", "CZ": "CZK", "D
 PRODUCT_TYPE = {"br": "Jewelry > Body Jewelry > Belly Rings", "nb": "Jewelry > Body Jewelry > Nipple Barbells",
                 "ch": "Jewelry > Body Jewelry > Charms", "pt": "Jewelry > Body Jewelry > Tops", "er": "Jewelry > Earrings"}
 FIELDS = ["id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price",
-          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "size"]
+          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "size", "gender", "age_group", "google_product_category"]
+# Google taxonomy paths, keyed like PRODUCT_TYPE (item_group_id prefix). Items with no match leave the cell empty.
+GOOGLE_CATEGORY = {"br": "Apparel & Accessories > Jewelry > Body Jewelry", "nb": "Apparel & Accessories > Jewelry > Body Jewelry",
+                   "ch": "Apparel & Accessories > Jewelry > Body Jewelry", "pt": "Apparel & Accessories > Jewelry > Body Jewelry",
+                   "er": "Apparel & Accessories > Jewelry > Earrings"}
+GENDER, AGE_GROUP = "female", "adult"  # same for every item; change here if the brand positions the range as unisex
 # Variant option names (Shopify) that fill Google's structured attributes. The first name found wins.
 OPTION_MAP = {"material": ["Material Option", "Material"], "size": ["Bar Length", "Ball Size"]}
 METAL = re.compile(r"\b(Yellow|White|Rose)\b(?:[ -]Gold)?", re.I)
@@ -70,6 +75,7 @@ for cc, cur in COUNTRIES.items():
         mapped = {g: next((opts[n.lower()] for n in names if opts.get(n.lower())), "")[:200] for g, names in OPTION_MAP.items()}
         mapped["size"] = clean_size(mapped["size"])
         mapped["material"] = clean_material(mapped["material"], r["title"], r["handle"])
+        gcat = GOOGLE_CATEGORY.get(r["group_id"].split("_")[0], "")
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
         out.append({
             "id": f"shopify_{cc}_{r['product_id']}_{r['variant_id']}", "title": title[:150],
@@ -79,10 +85,11 @@ for cc, cur in COUNTRIES.items():
             "availability": "in_stock" if r["available"] == "1" else "out_of_stock",
             "price": f"{Decimal(amount).quantize(Decimal('0.01'), ROUND_HALF_UP)} {code}", "brand": r["vendor"],
             "mpn": r["mpn"], "condition": "new", "item_group_id": r["group_id"],
-            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **mapped})
+            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **mapped, "gender": GENDER if gcat else "", "age_group": AGE_GROUP if gcat else "", "google_product_category": gcat})
     if bad and not skip:
         sys.exit(f"{cc}: {len(bad)} variants have no price, e.g. {bad[:3]}; no files written")
     with open(os.path.join(OUTDIR, f"GOOGLE_PRIMARY_{cc}.tsv"), "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS, delimiter="\t", quoting=csv.QUOTE_MINIMAL)
         w.writeheader(); w.writerows(out)
+print(f"{sum(1 for r in rows if r['group_id'].split('_')[0] not in GOOGLE_CATEGORY)} variants without a Google category")
 print(f"{len(rows)} variants x {len(COUNTRIES)} countries written to {OUTDIR}")
