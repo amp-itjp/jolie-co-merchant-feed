@@ -4,7 +4,7 @@
 Each file is a tab-separated feed for one country (feed label = country code):
   id shopify_<CC>_<product>_<variant>, title, description, link (that country's store URL, so the page shows the
   same price), image_link, additional_image_link, availability, price (Shopify's own price for the country, in
-  the country's currency), brand, mpn, condition, item_group_id, product_type.
+  the country's currency), brand, mpn, condition, item_group_id, product_type, material (option Material), size (option Bar length, else Ball size).
 Gift and Piercing Concierge variants (MPN contains GIFT or -PC) are left out, as in the current exclusion rule.
 The run stops, and writes nothing, if a variant lacks a price for a country, or Shopify's currency differs from
 the expected currency for that country.
@@ -22,7 +22,9 @@ COUNTRIES = {"AU": "AUD", "BH": "CAD", "BE": "EUR", "CA": "CAD", "CZ": "CZK", "D
 PRODUCT_TYPE = {"br": "Jewelry > Body Jewelry > Belly Rings", "nb": "Jewelry > Body Jewelry > Nipple Barbells",
                 "ch": "Jewelry > Body Jewelry > Charms", "pt": "Jewelry > Body Jewelry > Tops", "er": "Jewelry > Earrings"}
 FIELDS = ["id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price",
-          "brand", "mpn", "condition", "item_group_id", "product_type"]
+          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "size"]
+# Variant option names (Shopify) that fill Google's structured attributes. The first name found wins.
+OPTION_MAP = {"material": ["Material"], "size": ["Bar length", "Ball size"]}
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 CATALOG, OUTDIR = args
 skip = "--skip-unpriced" in sys.argv
@@ -41,6 +43,8 @@ for cc, cur in COUNTRIES.items():
         amount, code = p.split()
         if code != cur:
             sys.exit(f"{cc}: Shopify prices in {code} but {cur} is expected; no files written")
+        opts = dict(json.loads(r.get("options") or "[]"))
+        mapped = {g: next((opts[n] for n in names if opts.get(n)), "")[:200] for g, names in OPTION_MAP.items()}
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
         out.append({
             "id": f"shopify_{cc}_{r['product_id']}_{r['variant_id']}", "title": title[:150],
@@ -50,7 +54,7 @@ for cc, cur in COUNTRIES.items():
             "availability": "in_stock" if r["available"] == "1" else "out_of_stock",
             "price": f"{Decimal(amount).quantize(Decimal('0.01'), ROUND_HALF_UP)} {code}", "brand": r["vendor"],
             "mpn": r["mpn"], "condition": "new", "item_group_id": r["group_id"],
-            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], "")})
+            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **mapped})
     if bad and not skip:
         sys.exit(f"{cc}: {len(bad)} variants have no price, e.g. {bad[:3]}; no files written")
     with open(os.path.join(OUTDIR, f"GOOGLE_PRIMARY_{cc}.tsv"), "w", encoding="utf-8", newline="") as f:

@@ -2,7 +2,7 @@
 """Export everything the primary feed needs from Shopify in one file (Admin GraphQL bulk operation).
 One row per active variant that is published to the Online Store. Columns:
   variant_id, product_id, handle, title, variant_title, description, vendor, product_type, group_id, mpn, sku,
-  available, image_link, additional_images, price_<CC> (one per country, "amount CURRENCY") ...
+  available, image_link, additional_images, options (JSON [[name, value], ...]), price_<CC> (one per country, "amount CURRENCY") ...
 Usage: SHOPIFY_ACCESS_TOKEN=... shopify_primary_export.py <shop.myshopify.com> <catalog.csv>
 NOT YET RUN against the live store: needs one test run with the stored token."""
 import csv, html, json, os, re, sys, time, urllib.request
@@ -21,6 +21,7 @@ BULK = """
   images(first: 6) { edges { node { url } } }
   variants { edges { node {
     id sku title availableForSale image { url }
+    selectedOptions { name value }
     mpn: metafield(namespace: "mm-google-shopping", key: "mpn") { value }
 %s
   } } }
@@ -87,7 +88,8 @@ for v in variants:
            "variant_title": v["title"], "description": text(p["descriptionHtml"]), "vendor": p["vendor"],
            "product_type": p["productType"], "group_id": val(p.get("groupId")), "mpn": val(v.get("mpn")) or v["sku"],
            "sku": v["sku"], "available": "1" if v["availableForSale"] else "0", "image_link": main,
-           "additional_images": "|".join(u for u in imgs if u != main)[:2000]}
+           "additional_images": "|".join(u for u in imgs if u != main)[:2000],
+           "options": json.dumps([[o["name"], o["value"]] for o in v.get("selectedOptions") or []], ensure_ascii=False)}
     for c in COUNTRIES:
         pr = (v.get(f"p_{c}") or {}).get("price")
         row[f"price_{c}"] = f"{pr['amount']} {pr['currencyCode']}" if pr else ""
