@@ -44,13 +44,17 @@ def clean_size(v):
     return v + "mm" if re.fullmatch(r"\d+(\.\d+)?", v) else v
 
 
-def clean_material(v, title, handle):
+def clean_material(v, title, handle, mpn=""):
     # Shopify's Material option is a karat ("14k") or karat plus colour ("14k Rose"); a bare karat takes the gold
     # colour from the product title, then from the URL handle. Result matches the supplemental wording.
     m = re.fullmatch(r"(\d+)k(?:\s+(?:solid\s+)?(yellow|white|rose)(?:\s+gold)?)?", v.strip(), re.I)
     if not m:
         return v
     colour = m.group(2) or next((g.group(1) for g in (METAL.search(title), METAL.search(handle)) if g), "")
+    # A bare karat is the product's base metal, which is yellow gold when the SKU carries the YG code
+    # (Shopify tag "#14k yellow gold"). The SKU is only trusted for a bare karat: it is the base metal, not the variant's.
+    if not colour and re.search(r"(?:^|-)[A-Z]*YG(?:-|$)", mpn.upper()):
+        colour = "Yellow"
     return f"{m.group(1)}k Solid {colour.title()} Gold" if colour else v
 
 
@@ -80,7 +84,7 @@ for cc, cur in COUNTRIES.items():
         opts = {k.strip().lower(): v for k, v in json.loads(r.get("options") or "[]")}
         mapped = {g: next((opts[n.lower()] for n in names if opts.get(n.lower())), "")[:200] for g, names in OPTION_MAP.items()}
         mapped["size"] = clean_size(mapped["size"])
-        mapped["material"] = clean_material(mapped["material"], r["title"], r["handle"])
+        mapped["material"] = clean_material(mapped["material"], r["title"], r["handle"], r["mpn"])
         mapped["color"] = metal_colour(mapped["material"])
         gcat = GOOGLE_CATEGORY.get(r["group_id"].split("_")[0], "")
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
