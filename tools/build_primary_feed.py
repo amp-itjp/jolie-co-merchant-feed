@@ -22,7 +22,7 @@ COUNTRIES = {"AU": "AUD", "BH": "CAD", "BE": "EUR", "CA": "CAD", "CZ": "CZK", "D
 PRODUCT_TYPE = {"br": "Jewelry > Body Jewelry > Belly Rings", "nb": "Jewelry > Body Jewelry > Nipple Barbells",
                 "ch": "Jewelry > Body Jewelry > Charms", "pt": "Jewelry > Body Jewelry > Tops", "er": "Jewelry > Earrings"}
 FIELDS = ["id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price",
-          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "size", "gender", "age_group", "google_product_category"]
+          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "color", "size", "gender", "age_group", "google_product_category"]
 # Google taxonomy paths, keyed like PRODUCT_TYPE (item_group_id prefix). Items with no match leave the cell empty.
 GOOGLE_CATEGORY = {"br": "Apparel & Accessories > Jewelry > Body Jewelry", "nb": "Apparel & Accessories > Jewelry > Body Jewelry",
                    "ch": "Apparel & Accessories > Jewelry > Body Jewelry", "pt": "Apparel & Accessories > Jewelry > Body Jewelry",
@@ -31,6 +31,12 @@ GENDER, AGE_GROUP = "female", "adult"  # same for every item; change here if the
 # Variant option names (Shopify) that fill Google's structured attributes. The first name found wins.
 OPTION_MAP = {"material": ["Material Option", "Material"], "size": ["Bar Length", "Ball Size"]}
 METAL = re.compile(r"\b(Yellow|White|Rose)\b(?:[ -]Gold)?", re.I)
+
+
+def metal_colour(material):
+    # "14k Solid Rose Gold" -> "Rose Gold"; "Platinum" -> "Platinum"; a bare karat has no colour.
+    m = re.search(r"\b(Yellow|White|Rose) Gold\b", material, re.I)
+    return f"{m.group(1).title()} Gold" if m else ("Platinum" if material.lower() == "platinum" else "")
 
 
 def clean_size(v):
@@ -75,6 +81,7 @@ for cc, cur in COUNTRIES.items():
         mapped = {g: next((opts[n.lower()] for n in names if opts.get(n.lower())), "")[:200] for g, names in OPTION_MAP.items()}
         mapped["size"] = clean_size(mapped["size"])
         mapped["material"] = clean_material(mapped["material"], r["title"], r["handle"])
+        mapped["color"] = metal_colour(mapped["material"])
         gcat = GOOGLE_CATEGORY.get(r["group_id"].split("_")[0], "")
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
         out.append({
