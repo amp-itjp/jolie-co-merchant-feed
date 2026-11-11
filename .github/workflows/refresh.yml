@@ -2,9 +2,8 @@ name: Refresh supplemental feed
 
 on:
   schedule:
-    # 04:15 UTC is 30 min before the winter fetch (05:00 UTC); 03:15 UTC is 30 min before the summer fetch (04:00 UTC).
-    - cron: "15 3 * * *"
-    - cron: "15 4 * * *"
+    # 03:00 UTC = 10 PM EST / 11 PM EDT, ahead of the Merchant Center fetch at 12:00 AM Eastern.
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
