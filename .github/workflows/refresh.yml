@@ -2,8 +2,12 @@ name: Refresh supplemental feed
 
 on:
   schedule:
-    # 03:00 UTC = 10 PM EST / 11 PM EDT, ahead of the Merchant Center fetch at 12:00 AM Eastern.
-    - cron: "0 3 * * *"
+    # Merchant Center fetches at 12:00 AM Eastern = 05:00 UTC in winter (EST), 04:00 UTC in summer (EDT).
+    # The build now takes about 10 minutes, so it starts at 04:15 UTC (done by about 04:30, 30 minutes before the
+    # winter fetch) and at 03:15 UTC (done by about 03:30, 30 minutes before the summer fetch). GitHub cron has no
+    # time zone, so one of the two runs is always the useful one and the other is a harmless extra refresh.
+    - cron: "15 3 * * *"
+    - cron: "15 4 * * *"
   workflow_dispatch:
 
 permissions:
