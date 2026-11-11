@@ -6,8 +6,10 @@ The Essential Product Feeds CSV carries two values Google wants as repeated colu
   product_highlight one cell JSON list ["a","b"] (optional column) ->  one highlight per column
 Everything else is passed through unchanged, and product_type is added from the group ID prefix.
 
+NOTE: variant_option is still read and validated from the source but is NOT written: the primary feed now carries
+material, size and color as structured attributes.
 Usage: build_variant_option_feed.py <source csv path or URL> <out.csv>
-Output columns: id, item_group_id, item_group_title, title, description, variant_option x N,
+Output columns: id, item_group_id, item_group_title, title, description,
 product_type, product_highlight x M (M is 0 when the source has no product_highlight column).
 Rows with no title are dropped: they are the Gift and Piercing Concierge variants that the
 Merchant Center exclusion rule already hides, and they supply nothing.
@@ -105,10 +107,10 @@ if len(kept) < 10000:
 
 with open(OUT, "w", encoding="utf-8", newline="") as f:
     w = csv.writer(f)
-    w.writerow(KEEP + ["variant_option"] * widest + ["product_type"] + ["product_highlight"] * widest_hl)
+    w.writerow(KEEP + ["product_type"] + ["product_highlight"] * widest_hl)
     for r, pairs, ptype, hl in kept:
-        w.writerow([r[c] for c in KEEP] + pairs + [""] * (widest - len(pairs)) + [ptype] + hl + [""] * (widest_hl - len(hl)))
-print(f"source rows {len(rows)}, written {len(kept)}, variant_option columns {widest}, "
+        w.writerow([r[c] for c in KEEP] + [ptype] + hl + [""] * (widest_hl - len(hl)))
+print(f"source rows {len(rows)}, written {len(kept)}, variant_option columns dropped from the output (widest source row had {widest}), "
       f"product_highlight columns {widest_hl}, rows with highlights {stats['with_highlights']}, "
       f"rows without a product_type {stats['no_type']}, highlights dropped (over {HIGHLIGHT_MAX_CHARS} chars) {stats['too_long']}, "
       f"rows with fewer than 2 highlights {stats['under_two']}, wrote {OUT}")
