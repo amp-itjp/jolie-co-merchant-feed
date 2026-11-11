@@ -26,24 +26,34 @@ jobs:
       - name: Export from Shopify
         env:
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-        run: python3 -I tools/shopify_export.py jolie-je.myshopify.com shopify.csv
+        run: python3 -I tools/runlog.py run export_shopify python3 -I tools/shopify_export.py jolie-je.myshopify.com shopify.csv
       - name: Build file
         run: |
           mkdir -p site
-          python3 -I tools/build_variant_option_feed.py shopify.csv site/GOOGLE_SUPPLEMENTAL_ALL.csv
+          python3 -I tools/runlog.py run build_supplemental python3 -I tools/build_variant_option_feed.py shopify.csv site/GOOGLE_SUPPLEMENTAL_ALL.csv
           cp static/product_reviews.xml site/product_reviews.xml
       # Per-country primary feeds. Pilot: only the US file is published until more countries are registered.
       - name: Export per-country catalog
         env:
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-        run: python3 -I tools/shopify_primary_export.py jolie-je.myshopify.com catalog.csv
+        run: python3 -I tools/runlog.py run export_catalog python3 -I tools/shopify_primary_export.py jolie-je.myshopify.com catalog.csv
       - name: Build US primary feed
         run: |
           mkdir -p primary
           python3 -I tools/build_primary_feed.py catalog.csv primary
           test "$(wc -l < primary/GOOGLE_PRIMARY_US.tsv)" -gt 15000
           cp primary/GOOGLE_PRIMARY_US.tsv site/GOOGLE_PRIMARY_US.tsv
-          python3 -I tools/rekey_supplemental.py US site/GOOGLE_SUPPLEMENTAL_ALL.csv primary/GOOGLE_PRIMARY_US.tsv site/GOOGLE_SUPPLEMENTAL_US.csv
+          python3 -I tools/runlog.py run rekey_supplemental python3 -I tools/rekey_supplemental.py US site/GOOGLE_SUPPLEMENTAL_ALL.csv primary/GOOGLE_PRIMARY_US.tsv site/GOOGLE_SUPPLEMENTAL_US.csv
+      # Run log for the app UI. Kept as a private workflow artifact (the Pages site is public).
+      - name: Finalize run log
+        if: always()
+        run: python3 -I tools/runlog.py finalize
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: run-log
+          path: logs
+          retention-days: 30
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

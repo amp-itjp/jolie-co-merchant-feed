@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "description": "Shopify to Google Merchant Center mapping for the per-country primary feed. build_primary_feed.py reads this file; the app UI will display it. Transform names refer to functions in build_primary_feed.py.",
+  "exclude_mpn_contains": ["GIFT", "-PC"],
+  "countries": {
+    "AU": "AUD", "BH": "CAD", "BE": "EUR", "CA": "CAD", "CZ": "CZK", "DK": "EUR", "FR": "EUR", "DE": "EUR",
+    "GR": "EUR", "IE": "EUR", "IT": "EUR", "KW": "CAD", "LV": "EUR", "MX": "MXN", "NL": "EUR", "NZ": "NZD",
+    "NO": "NOK", "OM": "CAD", "PL": "PLN", "RO": "EUR", "SA": "SAR", "ES": "EUR", "SE": "SEK", "CH": "CHF",
+    "AE": "AED", "GB": "GBP", "US": "USD"
+  },
+  "fields": [
+    {"google": "id", "shopify": "product id, variant id", "rule": "shopify_<country>_<product id>_<variant id>", "required": true},
+    {"google": "title", "shopify": "product title, variant title", "rule": "Product title, then \", variant title\" unless the variant is the default; cut at 150 characters", "required": true},
+    {"google": "description", "shopify": "product description", "rule": "Whitespace collapsed, cut at 5000 characters; falls back to the title", "required": true},
+    {"google": "link", "shopify": "handle, variant id", "rule": "That country's store URL + /products/<handle>?variant=<variant id>, so the page shows the same price", "required": true},
+    {"google": "image_link", "shopify": "first product image", "rule": "Copied as is", "required": true},
+    {"google": "additional_image_link", "shopify": "other product images", "rule": "Up to 10, comma separated", "required": false},
+    {"google": "availability", "shopify": "variant availableForSale", "rule": "in_stock when available, else out_of_stock", "required": true},
+    {"google": "price", "shopify": "contextualPricing(country) price", "rule": "Shopify's own price for the country, in that country's currency, 2 decimals; the run stops if the currency differs from the expected one", "required": true},
+    {"google": "brand", "shopify": "product vendor", "rule": "Copied as is", "required": true},
+    {"google": "mpn", "shopify": "variant SKU", "rule": "Copied as is", "required": true},
+    {"google": "condition", "shopify": "none", "rule": "Always new", "required": true, "default": "new"},
+    {"google": "item_group_id", "shopify": "group id (product metafield or handle)", "rule": "Copied as is, groups the variants of one product", "required": true},
+    {"google": "product_type", "shopify": "group id prefix", "rule": "Looked up in product_type by the prefix before the first underscore", "required": false},
+    {"google": "material", "shopify": "variant option: Material Option, else Material", "rule": "Karat with gold colour, e.g. 14k Solid Yellow Gold; the colour comes from the option, then the product title, then the URL handle, then the YG code in the SKU (bare karats only)", "required": false, "transform": "clean_material"},
+    {"google": "color", "shopify": "derived from material", "rule": "Yellow Gold, White Gold, Rose Gold or Platinum; empty when the metal colour is unknown", "required": false, "transform": "metal_colour"},
+    {"google": "size", "shopify": "variant option: Bar Length, else Ball Size", "rule": "Brackets removed, bare numbers get mm, e.g. 10mm", "required": false, "transform": "clean_size"},
+    {"google": "gender", "shopify": "none", "rule": "Fixed value, set only when a Google category matches", "required": false, "default_key": "gender"},
+    {"google": "age_group", "shopify": "none", "rule": "Fixed value, set only when a Google category matches", "required": false, "default_key": "age_group"},
+    {"google": "google_product_category", "shopify": "group id prefix", "rule": "Looked up in google_category by the prefix before the first underscore; empty when no match", "required": false},
+    {"google": "native_commerce(checkout_eligibility)", "shopify": "none", "rule": "Always false until Google UCP onboarding is complete", "required": false, "default": "false"}
+  ],
+  "product_type": {
+    "br": "Jewelry > Body Jewelry > Belly Rings",
+    "nb": "Jewelry > Body Jewelry > Nipple Barbells",
+    "ch": "Jewelry > Body Jewelry > Charms",
+    "pt": "Jewelry > Body Jewelry > Tops",
+    "er": "Jewelry > Earrings"
+  },
+  "google_category": {
+    "br": "Apparel & Accessories > Jewelry > Body Jewelry",
+    "nb": "Apparel & Accessories > Jewelry > Body Jewelry",
+    "ch": "Apparel & Accessories > Jewelry > Body Jewelry",
+    "pt": "Apparel & Accessories > Jewelry > Body Jewelry",
+    "er": "Apparel & Accessories > Jewelry > Earrings"
+  },
+  "defaults": {"gender": "female", "age_group": "adult"},
+  "option_map": {
+    "material": ["Material Option", "Material"],
+    "size": ["Bar Length", "Ball Size"]
+  }
+}
