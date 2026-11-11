@@ -42,6 +42,7 @@ jobs:
           python3 -I tools/build_primary_feed.py catalog.csv primary
           test "$(wc -l < primary/GOOGLE_PRIMARY_US.tsv)" -gt 15000
           cp primary/GOOGLE_PRIMARY_US.tsv site/GOOGLE_PRIMARY_US.tsv
+          python3 -I tools/rekey_supplemental.py US site/GOOGLE_SUPPLEMENTAL_ALL.csv primary/GOOGLE_PRIMARY_US.tsv site/GOOGLE_SUPPLEMENTAL_US.csv
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
