@@ -25,7 +25,7 @@ FIELDS = ["id", "title", "description", "link", "image_link", "additional_image_
           "brand", "mpn", "condition", "item_group_id", "product_type", "material", "size"]
 # Variant option names (Shopify) that fill Google's structured attributes. The first name found wins.
 OPTION_MAP = {"material": ["Material Option", "Material"], "size": ["Bar Length", "Ball Size"]}
-METAL = re.compile(r"\b(Yellow|White|Rose) Gold\b", re.I)
+METAL = re.compile(r"\b(Yellow|White|Rose)\b(?:[ -]Gold)?", re.I)
 
 
 def clean_size(v):
@@ -33,12 +33,16 @@ def clean_size(v):
     return v + "mm" if re.fullmatch(r"\d+(\.\d+)?", v) else v
 
 
-def clean_material(v, title):
-    # Shopify's Material option is the karat only ("14k"); the gold colour is in the product title.
-    m = METAL.search(title)
-    if re.fullmatch(r"\d+k", v, re.I) and m:
-        return f"{v.lower()} Solid {m.group(1).title()} Gold"
-    return v
+def clean_material(v, title, handle):
+    # Shopify's Material option is a karat ("14k") or karat plus colour ("14k Rose"); a bare karat takes the gold
+    # colour from the product title, then from the URL handle. Result matches the supplemental wording.
+    m = re.fullmatch(r"(\d+)k(?:\s+(?:solid\s+)?(yellow|white|rose)(?:\s+gold)?)?", v.strip(), re.I)
+    if not m:
+        return v
+    colour = m.group(2) or next((g.group(1) for g in (METAL.search(title), METAL.search(handle)) if g), "")
+    return f"{m.group(1)}k Solid {colour.title()} Gold" if colour else v
+
+
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 CATALOG, OUTDIR = args
 skip = "--skip-unpriced" in sys.argv
@@ -65,7 +69,7 @@ for cc, cur in COUNTRIES.items():
         opts = {k.strip().lower(): v for k, v in json.loads(r.get("options") or "[]")}
         mapped = {g: next((opts[n.lower()] for n in names if opts.get(n.lower())), "")[:200] for g, names in OPTION_MAP.items()}
         mapped["size"] = clean_size(mapped["size"])
-        mapped["material"] = clean_material(mapped["material"], r["title"])
+        mapped["material"] = clean_material(mapped["material"], r["title"], r["handle"])
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
         out.append({
             "id": f"shopify_{cc}_{r['product_id']}_{r['variant_id']}", "title": title[:150],
