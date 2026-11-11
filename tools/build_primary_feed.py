@@ -33,6 +33,11 @@ urls = json.load(open(os.path.join(HERE, "market_urls.json")))
 csv.field_size_limit(10**8)
 rows = [r for r in csv.DictReader(open(CATALOG, encoding="utf-8", newline=""))
         if "GIFT" not in r["mpn"].upper() and "-PC" not in r["mpn"].upper()]
+names_seen = {}
+for r in rows:
+    for k, _ in json.loads(r.get("options") or "[]"):
+        names_seen[k] = names_seen.get(k, 0) + 1
+print("option names:", sorted(names_seen.items(), key=lambda kv: -kv[1])[:20])
 os.makedirs(OUTDIR, exist_ok=True)
 for cc, cur in COUNTRIES.items():
     out, bad = [], []
@@ -43,8 +48,8 @@ for cc, cur in COUNTRIES.items():
         amount, code = p.split()
         if code != cur:
             sys.exit(f"{cc}: Shopify prices in {code} but {cur} is expected; no files written")
-        opts = dict(json.loads(r.get("options") or "[]"))
-        mapped = {g: next((opts[n] for n in names if opts.get(n)), "")[:200] for g, names in OPTION_MAP.items()}
+        opts = {k.strip().lower(): v for k, v in json.loads(r.get("options") or "[]")}
+        mapped = {g: next((opts[n.lower()] for n in names if opts.get(n.lower())), "")[:200] for g, names in OPTION_MAP.items()}
         title = r["title"] if r["variant_title"] in ("", "Default Title") else f"{r['title']}, {r['variant_title']}"
         out.append({
             "id": f"shopify_{cc}_{r['product_id']}_{r['variant_id']}", "title": title[:150],
