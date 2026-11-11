@@ -21,8 +21,9 @@ COUNTRIES = {"AU": "AUD", "BH": "CAD", "BE": "EUR", "CA": "CAD", "CZ": "CZK", "D
              "AE": "AED", "GB": "GBP", "US": "USD"}
 PRODUCT_TYPE = {"br": "Jewelry > Body Jewelry > Belly Rings", "nb": "Jewelry > Body Jewelry > Nipple Barbells",
                 "ch": "Jewelry > Body Jewelry > Charms", "pt": "Jewelry > Body Jewelry > Tops", "er": "Jewelry > Earrings"}
+NATIVE = "native_commerce(checkout_eligibility)"  # Gemini checkout opt-in; false until UCP onboarding is done
 FIELDS = ["id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price",
-          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "color", "size", "gender", "age_group", "google_product_category"]
+          "brand", "mpn", "condition", "item_group_id", "product_type", "material", "color", "size", "gender", "age_group", "google_product_category", NATIVE]
 # Google taxonomy paths, keyed like PRODUCT_TYPE (item_group_id prefix). Items with no match leave the cell empty.
 GOOGLE_CATEGORY = {"br": "Apparel & Accessories > Jewelry > Body Jewelry", "nb": "Apparel & Accessories > Jewelry > Body Jewelry",
                    "ch": "Apparel & Accessories > Jewelry > Body Jewelry", "pt": "Apparel & Accessories > Jewelry > Body Jewelry",
@@ -96,7 +97,7 @@ for cc, cur in COUNTRIES.items():
             "availability": "in_stock" if r["available"] == "1" else "out_of_stock",
             "price": f"{Decimal(amount).quantize(Decimal('0.01'), ROUND_HALF_UP)} {code}", "brand": r["vendor"],
             "mpn": r["mpn"], "condition": "new", "item_group_id": r["group_id"],
-            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **mapped, "gender": GENDER if gcat else "", "age_group": AGE_GROUP if gcat else "", "google_product_category": gcat})
+            "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **mapped, "gender": GENDER if gcat else "", "age_group": AGE_GROUP if gcat else "", "google_product_category": gcat, NATIVE: "false"})
     if bad and not skip:
         sys.exit(f"{cc}: {len(bad)} variants have no price, e.g. {bad[:3]}; no files written")
     with open(os.path.join(OUTDIR, f"GOOGLE_PRIMARY_{cc}.tsv"), "w", encoding="utf-8", newline="") as f:
