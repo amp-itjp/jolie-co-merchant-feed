@@ -60,7 +60,7 @@ if op["status"] != "COMPLETED" or not op.get("url"):
 
 num = lambda g: g.rsplit("/", 1)[1]
 val = lambda m: (m or {}).get("value") or ""
-products, images, variants = {}, {}, []
+products, images, variants, child_opts = {}, {}, [], {}
 with urllib.request.urlopen(op["url"], timeout=300) as r:
     for line in r:
         o = json.loads(line)
@@ -70,6 +70,8 @@ with urllib.request.urlopen(op["url"], timeout=300) as r:
             variants.append(o)
         elif "url" in o:
             images.setdefault(o["__parentId"], []).append(o["url"])
+        elif "name" in o and "value" in o:  # selectedOptions delivered as child lines of the variant
+            child_opts.setdefault(o["__parentId"], []).append([o["name"], o["value"]])
 
 
 def text(h):
@@ -89,11 +91,15 @@ for v in variants:
            "product_type": p["productType"], "group_id": val(p.get("groupId")), "mpn": val(v.get("mpn")) or v["sku"],
            "sku": v["sku"], "available": "1" if v["availableForSale"] else "0", "image_link": main,
            "additional_images": "|".join(u for u in imgs if u != main)[:2000],
-           "options": json.dumps([[o["name"], o["value"]] for o in v.get("selectedOptions") or []], ensure_ascii=False)}
+           "options": json.dumps([[o["name"], o["value"]] for o in v.get("selectedOptions") or []] or child_opts.get(v["id"], []), ensure_ascii=False)}
     for c in COUNTRIES:
         pr = (v.get(f"p_{c}") or {}).get("price")
         row[f"price_{c}"] = f"{pr['amount']} {pr['currencyCode']}" if pr else ""
     rows.append(row)
+n_opts = sum(1 for r in rows if r["options"] != "[]")
+print(f"{n_opts} of {len(rows)} variants have option names")
+if n_opts < len(rows) * 0.9:
+    sys.exit("option names missing on most variants; refusing to write " + OUT)
 if len(rows) < 10000:
     sys.exit(f"only {len(rows)} variants; refusing to write {OUT}")
 with open(OUT, "w", encoding="utf-8", newline="") as f:
