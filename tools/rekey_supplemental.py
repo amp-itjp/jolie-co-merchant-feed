@@ -2,7 +2,7 @@
 """Re-key the CA supplemental file for one country so it matches that country's primary feed.
 Rows are kept only if their ID exists in the country's primary file (a supplemental row for a missing item is ignored by
 Merchant Center, so parity is enforced here). No price column: the primary feed already carries the local price.
-The variant_option columns are dropped: the primary feed carries material, size and color as structured attributes.
+The variant_option columns are kept as they are in the ALL file.
 Usage: rekey_supplemental.py <CC> supplemental_all.csv GOOGLE_PRIMARY_<CC>.tsv out.csv"""
 import csv, sys
 cc, sup, primary, out = sys.argv[1:5]
@@ -12,9 +12,6 @@ with open(sup, encoding="utf-8", newline="") as f:
     rd = csv.reader(f); header = next(rd); rows = list(rd)
 if header[0] != "id" or not all(r[0].startswith("shopify_CA_") for r in rows):
     sys.exit("supplemental file must have IDs shopify_CA_...")
-keep_cols = [i for i, c in enumerate(header) if c != "variant_option"]
-header = [header[i] for i in keep_cols]
-rows = [[r[i] for i in keep_cols] for r in rows]
 kept = []
 for r in rows:
     new = f"shopify_{cc}_" + r[0][len("shopify_CA_"):]
