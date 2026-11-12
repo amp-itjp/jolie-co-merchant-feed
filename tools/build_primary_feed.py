@@ -25,6 +25,7 @@ COUNTRIES = RULES["countries"]
 PRODUCT_TYPE, GOOGLE_CATEGORY = RULES["product_type"], RULES["google_category"]
 FIELDS = [f["google"] for f in RULES["fields"]]
 NATIVE = "native_commerce(checkout_eligibility)"  # Gemini checkout opt-in; false until UCP onboarding is done
+DEFAULT = {f["google"]: f["default"] for f in RULES["fields"] if "default" in f}  # used when the metafield is empty
 MIN_FILL = {f["google"]: f["min_fill"] for f in RULES["fields"] if "min_fill" in f}
 # Fields copied from the Google metafields exported by shopify_primary_export.py (catalog column mf_<name>).
 FROM_METAFIELD = ["color", "material", "size", "gender", "age_group", "custom_label_1", "custom_label_2"]
@@ -50,6 +51,11 @@ def build(step):
         step.info(f"metafield {src}: {got} of {len(rows)} filled")
         if got < need * len(rows):
             sys.exit(f"{src} filled on only {got} of {len(rows)} variants (need {int(need * 100)}%); no files written")
+    for k in FROM_METAFIELD:
+        if k in DEFAULT:
+            empty = sum(1 for r in rows if not r[f"mf_{k}"])
+            if empty:
+                step.warn(f"{k} metafield is empty on {empty} variants; using the default '{DEFAULT[k]}'", field=k, defaulted=empty)
     os.makedirs(OUTDIR, exist_ok=True)
     report = {"rules_version": RULES["version"], "variants": len(rows), "countries": {}, "samples": {}}
     for cc, cur in COUNTRIES.items():
@@ -73,7 +79,7 @@ def build(step):
                 "availability": "in_stock" if r["available"] == "1" else "out_of_stock",
                 "price": f"{Decimal(amount).quantize(Decimal('0.01'), ROUND_HALF_UP)} {code}", "brand": r["vendor"],
                 "mpn": r["mpn"], "condition": "new", "item_group_id": r["group_id"],
-                "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **{k: r[f"mf_{k}"][:200] for k in FROM_METAFIELD}, "google_product_category": gcat, NATIVE: "false"})
+                "product_type": PRODUCT_TYPE.get(r["group_id"].split("_")[0], ""), **{k: (r[f"mf_{k}"] or DEFAULT.get(k, ""))[:200] for k in FROM_METAFIELD}, "google_product_category": gcat, NATIVE: "false"})
         if bad and not skip:
             sys.exit(f"{cc}: {len(bad)} variants have no price, e.g. {bad[:3]}; no files written")
         with open(os.path.join(OUTDIR, f"GOOGLE_PRIMARY_{cc}.tsv"), "w", encoding="utf-8", newline="") as f:

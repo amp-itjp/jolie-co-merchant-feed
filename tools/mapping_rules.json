@@ -146,9 +146,9 @@
     {
       "google": "age_group",
       "shopify": "variant metafield mm-google-shopping.age_group",
-      "rule": "Copied as is (adult)",
+      "rule": "Copied from the metafield; the metafield is empty on every variant, so the value is adult",
       "required": false,
-      "min_fill": 0.9
+      "default": "adult"
     },
     {
       "google": "google_product_category",
