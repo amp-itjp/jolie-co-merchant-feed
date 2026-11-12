@@ -18,11 +18,20 @@ BULK = """
 { products(query: "status:active") { edges { node {
   id handle title descriptionHtml vendor productType onlineStoreUrl
   groupId: metafield(namespace: "google", key: "group_id") { value }
+  mf_description: metafield(namespace: "google", key: "custom_product_description") { value }
   images(first: 6) { edges { node { url } } }
   variants { edges { node {
     id sku title availableForSale image { url }
     selectedOptions { name value }
     mpn: metafield(namespace: "mm-google-shopping", key: "mpn") { value }
+    mf_title: metafield(namespace: "google", key: "custom_product_title") { value }
+    mf_color: metafield(namespace: "mm-google-shopping", key: "color") { value }
+    mf_material: metafield(namespace: "mm-google-shopping", key: "material") { value }
+    mf_size: metafield(namespace: "mm-google-shopping", key: "size") { value }
+    mf_gender: metafield(namespace: "mm-google-shopping", key: "gender") { value }
+    mf_age_group: metafield(namespace: "mm-google-shopping", key: "age_group") { value }
+    mf_custom_label_1: metafield(namespace: "mm-google-shopping", key: "custom_label_1") { value }
+    mf_custom_label_2: metafield(namespace: "mm-google-shopping", key: "custom_label_2") { value }
 %s
   } } }
 } } } }""" % aliases
@@ -59,7 +68,17 @@ if op["status"] != "COMPLETED" or not op.get("url"):
     sys.exit(f"bulk operation ended as {op['status']} ({op.get('errorCode')})")
 
 num = lambda g: g.rsplit("/", 1)[1]
-val = lambda m: (m or {}).get("value") or ""
+def val(m):
+    v = ((m or {}).get("value") or "").strip()
+    if v.startswith("["):  # list-type metafield: ["Gold", "White"] -> Gold/White
+        try:
+            return "/".join(str(x).strip() for x in json.loads(v) if str(x).strip())
+        except ValueError:
+            pass
+    return v
+
+
+MF = ["title", "color", "material", "size", "gender", "age_group", "custom_label_1", "custom_label_2"]
 products, images, variants, child_opts = {}, {}, [], {}
 with urllib.request.urlopen(op["url"], timeout=300) as r:
     for line in r:
@@ -91,6 +110,8 @@ for v in variants:
            "product_type": p["productType"], "group_id": val(p.get("groupId")), "mpn": val(v.get("mpn")) or v["sku"],
            "sku": v["sku"], "available": "1" if v["availableForSale"] else "0", "image_link": main,
            "additional_images": "|".join(u for u in imgs if u != main)[:2000],
+           "mf_description": val(p.get("mf_description")).replace("\r\n", "\n"),
+           **{f"mf_{k}": val(v.get(f"mf_{k}")) for k in MF},
            "options": json.dumps([[o["name"], o["value"]] for o in v.get("selectedOptions") or []] or child_opts.get(v["id"], []), ensure_ascii=False)}
     for c in COUNTRIES:
         pr = (v.get(f"p_{c}") or {}).get("price")
@@ -100,6 +121,8 @@ n_opts = sum(1 for r in rows if r["options"] != "[]")
 print(f"{n_opts} of {len(rows)} variants have option names")
 if n_opts < len(rows) * 0.9:
     sys.exit("option names missing on most variants; refusing to write " + OUT)
+for k in ["description"] + MF:
+    print(f"metafield {k}: {sum(1 for r in rows if r['mf_' + k])} of {len(rows)} variants filled")
 if len(rows) < 10000:
     sys.exit(f"only {len(rows)} variants; refusing to write {OUT}")
 with open(OUT, "w", encoding="utf-8", newline="") as f:
